@@ -1,18 +1,22 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "discord-bot-notifier",
-  "version": "0.1.0",
-  "description": "Compose and send intentional Discord notifications through a configured bot and channel.",
-  "author": {"name": "Beta"},
+  "version": "0.2.0",
+  "description": "Send Discord alerts and run a configurable multi-provider Discord AI chatbot.",
+  "author": {
+    "name": "Beta"
+  },
   "extensions": {
     "com.openai": {
       "interface": {
         "displayName": "Discord Bot Notifier",
-        "shortDescription": "Send clear alerts through your Discord bot",
-        "longDescription": "Draft and send concise notifications to a configured Discord channel with delivery checks, mention controls, and rate limit handling.",
+        "shortDescription": "Discord alerts and multi-provider AI bot",
+        "longDescription": "Send one-off Discord notifications, or host a bot with selectable GPT, Claude, Gemini, Mistral, Grok, Llama, and local models.",
         "developerName": "Beta",
         "category": "Productivity",
-        "capabilities": ["Interactive"],
+        "capabilities": [
+          "Interactive"
+        ],
         "defaultPrompt": [
           "Send a Discord notification about this result.",
           "Prepare a Discord alert for this event and show me the preview.",
