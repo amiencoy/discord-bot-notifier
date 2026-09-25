@@ -1,71 +1,80 @@
 # Discord Bot Notifier
 
-A small [Agent Plugins 1.0](https://agent-plugins.org/) plugin that helps an assistant draft and send a Discord notification with **your own bot**. It includes a Python sender with no third-party dependencies.
+A provider-agnostic Discord chatbot for opt-in AI model alerts and slash-command conversations. Each server operator brings their own Discord bot, provider keys, and model IDs. The repository also includes an [Agent Plugins 1.0](https://agent-plugins.org/) skill and the original one-shot notifier script.
 
-> The repository is public; the bot token and channel ID are yours. No credential is bundled, and nothing sends automatically until you configure and run it.
+**Supported model families:** GPT (OpenAI), Claude, Gemini, Mistral, Grok, Llama (local OpenAI-compatible endpoint), and a general Local / OpenAI-compatible endpoint. Mistral and Grok use their OpenAI-compatible chat endpoints; Claude and Gemini use their native APIs. A model ID is an exact value from your provider, not a name this project guesses.
 
-## What it does
+## Quick start
 
-- Drafts a concise status, result, or alert for a Discord channel.
-- Sends one message through Discord's bot API and reports its message ID when accepted.
-- Disables all `@everyone`, role, and user mentions by default.
-- Honors Discord's rate limit response with bounded retries.
-- Offers a `--dry-run` preview without credentials or network access.
+1. Create a bot in the [Discord Developer Portal](https://discord.com/developers/applications) and invite it to a server with the `bot` and `applications.commands` scopes. Grant **View Channel** and **Send Messages** in the target channel. No Message Content intent is needed for slash commands.
+2. Clone the repository, create a Python 3.10+ virtual environment, and install dependencies:
 
-This is an **outbound notifier**, not a conversational Discord bot. It does not read incoming messages, monitor events, run in the background, or schedule recurring alerts. To notify on a future event, connect a trusted scheduler or automation to the sender.
+   ```bash
+   python3 -m venv .venv
+   . .venv/bin/activate
+   pip install -r requirements.txt
+   cp .env.example .env
+   ```
 
-## Prerequisites
+3. Privately fill `DISCORD_BOT_TOKEN` in `.env`. For fast slash-command registration, set `DISCORD_GUILD_ID` to your test server ID. Set `DISCORD_ALERT_CHANNEL_ID` to the channel where alerts should be posted. Never commit `.env` or send keys through Discord.
+4. Run `python3 -m bot.app`. Keep the process running for slash commands and alerts.
+5. In the server, run `/addmodel`. Select a model family, enter its **exact model ID**, and optionally its local/compatible base URL. The bot sends an **ephemeral template** to copy into `.env`. Fill API keys on the bot host and restart the bot. `/addmodel` does not receive or store keys.
+6. Run `/modelstatus`, `/turnon model:<provider>`, `/testmodel model:<provider>`, and `/ask model:<provider> prompt:<your test>`. The test calls the AI and returns its answer via Discord. Model status turns green when its required environment configuration is present; last test status shows whether a request succeeded. Green does not by itself prove connectivity.
 
-- Python 3.9 or later in the environment that runs the bundled script.
-- A Discord application with a bot, installed in your server.
-- A text channel in that server where the bot has **View Channel** and **Send Messages** permissions.
-- Outbound access to `discord.com` from the execution environment.
+For a locally hosted model, use an OpenAI-compatible server such as one listening at `http://127.0.0.1:11434/v1`. The server must be reachable **from the machine running the bot**. `127.0.0.1` points to that machine, not to the Discord user's device. Local keys are optional; configure `MODEL_LLAMA_API_KEY` or `MODEL_LOCAL_API_KEY` if the local server requires authentication.
 
-## Set up your bot
+## Commands
 
-1. In the [Discord Developer Portal](https://discord.com/developers/applications), create an application and add a bot. Keep its token secret.
-2. Invite the bot to your server with the `bot` scope and the permissions above. Do not use a personal account token.
-3. Enable **Developer Mode** in Discord, right-click the destination channel, and select **Copy Channel ID**.
-4. Put `DISCORD_BOT_TOKEN` and `DISCORD_CHANNEL_ID` in the secret/environment settings of the **machine or automation that will run the Python script**. Never commit a token, paste it into chat, or put it in command arguments or logs. The channel ID is an identifier, while the bot token is a secret.
+| Command | Purpose | Permission |
+| --- | --- | --- |
+| `/addmodel` | Choose a provider, fill a model ID, get an `.env` template privately | Manage Server |
+| `/modelstatus` | Show whether each family was added, on/off, and last request status | Server member |
+| `/turnon model` | Activate one configured family in this server | Manage Server |
+| `/turnoff model` | Stop requests to one family in this server | Manage Server |
+| `/alerts model event enabled` | Choose which alert event to send for one family | Manage Server |
+| `/alertstatus model` | Show the selected alert events | Server member |
+| `/testmodel model` | Test Discord → AI → Discord with an ephemeral response | Manage Server |
+| `/ask model prompt` | Ask the model and post its response in the channel | Manage Server |
 
-The plugin cannot retrieve your token from Discord or automatically install the bot in a server. Each user provides their own configuration.
+Alert events are `test_success`, `test_failure`, `request_failure`, and `recovered`. They are **off by default**. Set `DISCORD_ALERT_CHANNEL_ID`, then enable the events you want with `/alerts`. Alerts fire when bot commands produce those events; this release does not poll provider uptime in the background. Model switches, alert choices, and last request results are stored per server in SQLite (`DISCORD_STATE_DB`). Credentials and model IDs stay in environment settings, never in SQLite.
 
-## Run it
+`/ask` is restricted to Manage Server to limit unwanted provider charges. Bot replies suppress all mentions, including mentions returned by AI. A provider error is reported without echoing the API key or the provider's response body. The bot does not let an AI autonomously call Discord tools; it handles a user's command, calls the chosen provider, and sends the response back.
 
-From the repository root, first preview the payload:
+## Environment variable mapping
+
+| Family | Required `.env` values | Default API style |
+| --- | --- | --- |
+| GPT | `MODEL_GPT_ID`, `MODEL_GPT_API_KEY` | OpenAI chat completions |
+| Claude | `MODEL_CLAUDE_ID`, `MODEL_CLAUDE_API_KEY` | Anthropic Messages |
+| Gemini | `MODEL_GEMINI_ID`, `MODEL_GEMINI_API_KEY` | Gemini generateContent |
+| Mistral | `MODEL_MISTRAL_ID`, `MODEL_MISTRAL_API_KEY` | OpenAI-compatible chat completions |
+| Grok | `MODEL_GROK_ID`, `MODEL_GROK_API_KEY` | OpenAI-compatible chat completions |
+| Llama | `MODEL_LLAMA_ID`, `MODEL_LLAMA_BASE_URL` | Local OpenAI-compatible chat completions |
+| Local / OpenAI-compatible | `MODEL_LOCAL_ID`, `MODEL_LOCAL_BASE_URL` | Custom OpenAI-compatible chat completions |
+
+You can optionally set `MODEL_<FAMILY>_BASE_URL` to override any default endpoint, and `MODEL_LLAMA_API_KEY` or `MODEL_LOCAL_API_KEY` for authenticated local hosts. Use HTTPS for remote providers. One model ID per family is supported in this release. Restart the bot after editing `.env`; `/addmodel` prepares the template but does not modify the bot host.
+
+## Standalone notifier
+
+The original sender remains available for a one-off Discord alert, even without the chatbot runtime:
 
 ```bash
-python3 skills/send-discord-notification/scripts/send_discord.py \
-  --dry-run --message '✅ Deployment completed'
+python3 skills/send-discord-notification/scripts/send_discord.py --dry-run --message '✅ Job completed'
+printf '%s' '✅ Job completed' | python3 skills/send-discord-notification/scripts/send_discord.py --message-stdin
 ```
 
-Once the environment variables are configured, send a message:
+It reads `DISCORD_BOT_TOKEN` and `DISCORD_CHANNEL_ID` from the process environment. It does not load `.env` itself. A successful send returns a Discord message ID; after a network timeout, verify the channel before retrying to avoid duplicates.
 
-```bash
-printf '%s' '✅ Deployment completed' | \
-  python3 skills/send-discord-notification/scripts/send_discord.py --message-stdin
-```
+## Plugin and source layout
 
-A successful send prints JSON containing `status`, `channel_id`, and `message_id`. If the request times out, delivery is unverified; check the channel before retrying to avoid duplicates. The sender accepts a different destination with `--channel-id 123456789012345678`, after you verify that the bot has access to it. Messages are limited to 2,000 characters.
+- `plugin.json` and `skills/send-discord-notification/` provide the assistant workflow and one-off sender.
+- `bot/` contains slash commands, model configuration, API adapters, and SQLite state.
+- `tests/` checks provider routing, templates, and persisted switches without contacting external services.
 
-For scripted notifications, pipe the already prepared text into `--message-stdin`. Avoid constructing shell commands from untrusted message text.
+Installing the ChatGPT plugin does not start a persistent Discord process. Host and run `bot.app` yourself to receive slash commands. Nothing includes provider keys or a Discord bot token.
 
-## Use it as a plugin
+## Security and limits
 
-The repository root holds `plugin.json` and the `send-discord-notification` skill. Install it in a client that supports the Agent Plugins format, or invoke the script directly from your own workflow. The skill guides an assistant to preview, send, and verify one notification when the runtime has script execution and network access. Installing the plugin alone does not provide a persistent bot process or a configured Discord connection.
+Keep `.env` private, rotate exposed tokens, and grant the bot only the necessary server permissions. A customized base URL is operator-controlled and makes the bot send the selected prompt and optional credential to that server. Review that destination before configuring it. Provider requests have a 25-second timeout. The bot returns up to 1,800 characters in `/ask` and does not maintain conversation history. It uses an exact model ID supplied by the operator, so provider availability and charges depend on that account.
 
-## Repository layout
-
-```text
-plugin.json
-skills/send-discord-notification/SKILL.md
-skills/send-discord-notification/scripts/send_discord.py
-```
-
-## Security
-
-The sender only contacts Discord's `api/v10/channels/{channel_id}/messages` endpoint. It does not print the token. Restrict who can set the bot token, rotate it if exposed, and grant the bot only the channel permissions it needs. Review notification contents before sending sensitive material.
-
-## License
-
-Apache-2.0. See [LICENSE](LICENSE).
+Licensed under [Apache-2.0](LICENSE).
