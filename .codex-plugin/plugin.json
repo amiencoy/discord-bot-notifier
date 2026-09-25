@@ -1,0 +1,25 @@
+{
+  "interface": {
+    "displayName": "Discord Bot Notifier",
+    "shortDescription": "Discord alerts and multi-provider AI bot",
+    "longDescription": "Send one-off Discord notifications, or host a bot with selectable GPT, Claude, Gemini, Mistral, Grok, Llama, and local models.",
+    "developerName": "Beta",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive"
+    ],
+    "defaultPrompt": [
+      "Send a Discord notification about this result.",
+      "Prepare a Discord alert for this event and show me the preview.",
+      "Help me configure my Discord bot and channel for notifications."
+    ]
+  },
+  "name": "discord-bot-notifier",
+  "version": "0.2.0",
+  "description": "Send Discord alerts and run a configurable multi-provider Discord AI chatbot.",
+  "author": {
+    "name": "Beta"
+  },
+  "keywords": [],
+  "skills": "./skills"
+}
