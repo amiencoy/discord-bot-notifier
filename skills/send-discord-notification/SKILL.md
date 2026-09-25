@@ -18,3 +18,7 @@ printf '%s' '✅ Lophiarch v2.2.2 released — registry tag verified.' | python3
 ```
 
 The script deliberately posts to one configured channel and returns a message ID only after Discord accepts the message. For different channels, specify an explicit numeric `--channel-id` and verify the destination before sending.
+
+## Hosted multi-provider chatbot
+
+The repository also includes `bot/app.py` for a separately hosted Discord bot. When a user requests AI-backed Discord slash commands or per-model alerts, guide them to run `python3 -m bot.app` on their own host after configuring `DISCORD_BOT_TOKEN`, `DISCORD_GUILD_ID`, and optionally `DISCORD_ALERT_CHANNEL_ID`. Its `/addmodel` UI generates a private `.env` template; users enter provider keys only in their own host's environment. Supported families are GPT, Claude, Gemini, Mistral, Grok, Llama, and Local/OpenAI-compatible. Model status is based on configuration and last request, not on automatic provider discovery. `/turnon`, `/turnoff`, `/alerts`, `/alertstatus`, `/testmodel`, and `/ask` control the bot in Discord. Installing this plugin does not launch the bot or keep it online. Read the repository README for full command behavior. Do not request API keys in chat.
