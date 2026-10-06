@@ -65,10 +65,73 @@ printf '%s' '✅ Job completed' | python3 skills/send-discord-notification/scrip
 
 It reads `DISCORD_BOT_TOKEN` and `DISCORD_CHANNEL_ID` from the process environment. It does not load `.env` itself. A successful send returns a Discord message ID; after a network timeout, verify the channel before retrying to avoid duplicates.
 
+## MCP Server (Model Context Protocol)
+
+This repository includes an MCP server for agent integration. The server connects to your n8n workflow and sends structured notifications when agent tasks complete.
+
+### Quick start - MCP Server
+
+1. Install MCP dependencies:
+
+   ```bash
+   pip install -r requirements-mcp.txt
+   ```
+
+2. Configure the MCP server:
+
+   ```bash
+   cp .env.mcp.example .env.mcp
+   # Edit .env.mcp with your n8n webhook URL
+   ```
+
+3. Start the MCP server:
+
+   ```bash
+   python3 mcp_server.py
+   ```
+
+4. The server exposes a `send_notification` tool that agents can call.
+
+### MCP Configuration
+
+| Environment Variable | Purpose | Default |
+| --- | --- | --- |
+| `N8N_WEBHOOK_URL` | Your n8n webhook endpoint | `https://draxisdigital.app.n8n.cloud/webhook/agent-notifier` |
+| `AGENT_NAME` | Agent identifier | `Mistral Vibe` |
+| `AGENT_VARIANT` | Agent variant/version | `devstral` |
+
+### MCP Tool: send_notification
+
+Sends a structured notification to your n8n workflow.
+
+**Parameters:**
+- `event_type` (string, enum): `started`, `progress`, `completed`, `failed` - default: `completed`
+- `status` (string): Status of the operation - default: `success`
+- `prompt` (string, required): The user's original prompt
+- `summary` (string): Summary of the agent's work
+- `details` (object): Additional details (e.g., `{"files_changed": 3}`)
+
+**Example payload sent to n8n:**
+
+```json
+{
+  "run_id": "vibe-20261006-1210-abc123",
+  "agent_name": "Mistral Vibe",
+  "agent_variant": "devstral",
+  "event_type": "completed",
+  "status": "success",
+  "prompt": "buatkan analisis data",
+  "summary": "Analisis data selesai, 3 file diupdate",
+  "details": {"files_changed": 3},
+  "timestamp": "2026-10-06T12:10:00.000000+00:00"
+}
+```
+
 ## Plugin and source layout
 
 - `plugin.json` and `skills/send-discord-notification/` provide the assistant workflow and one-off sender.
 - `bot/` contains slash commands, model configuration, API adapters, and SQLite state.
+- `mcp_server.py` is the MCP server for agent integration.
 - `tests/` checks provider routing, templates, and persisted switches without contacting external services.
 
 Installing the ChatGPT plugin does not start a persistent Discord process. Host and run `bot.app` yourself to receive slash commands. Nothing includes provider keys or a Discord bot token.

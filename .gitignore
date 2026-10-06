@@ -3,5 +3,6 @@ __pycache__/
 .env
 .env.*
 !.env.example
+!.env.mcp.example
 *.zip
 data/
